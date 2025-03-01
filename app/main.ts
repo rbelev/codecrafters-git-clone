@@ -37,7 +37,8 @@ async function hashObject(args: string[]): Promise<void> {
     const dir = path.dirname(writePath);
     fs.mkdirSync(dir, { recursive: true });
 
-    const zlibContents = gzipSync(contents, );
+    const zlibContents = gzipSync(contents);
+    console.log(`contents: ${unzipSync(zlibContents).toString()}`);
     fs.writeFileSync(writePath, zlibContents);
     process.stdout.write(sha);
 }
