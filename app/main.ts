@@ -29,18 +29,15 @@ switch (command) {
 async function hashObject(args: string[]): Promise<void> {
     const [,, fileName] = args;
     const file = fs.readFileSync(fileName).toString();
-    console.log(`file: ${file}`);
     const sizeBytes = Buffer.byteLength(file);
 
     const contents = ['blob', ' ', sizeBytes, '\0', file].join('');
-    console.log(`contents raw: ${contents}`);
     const sha = crypto.createHash('sha1').update(contents).digest('hex');
     const writePath = objectPathFromSha(sha);
     const dir = path.dirname(writePath);
     fs.mkdirSync(dir, { recursive: true });
 
     const zlibContents = gzipSync(contents);
-    console.log(`contents zip+un: ${unzipSync(zlibContents).toString()}(/contents)`);
     fs.writeFileSync(writePath, zlibContents);
     process.stdout.write(sha);
 }
