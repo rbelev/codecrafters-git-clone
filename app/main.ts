@@ -1,9 +1,7 @@
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { promisify } from 'node:util';
-import { unzip } from "node:zlib";
-import * as zlib from "node:zlib";
+import { unzipSync, gzipSync } from "node:zlib";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -19,7 +17,7 @@ switch (command) {
         init();
         break;
     case Commands.CatFile:
-        await catFile(args);
+        catFile(args);
         break;
     case Commands.HashObject:
         await hashObject(args);
@@ -39,17 +37,17 @@ async function hashObject(args: string[]): Promise<void> {
     const dir = path.dirname(writePath);
     fs.mkdirSync(dir, { recursive: true });
 
-    const zlibContents = zlib.gzipSync(contents);
+    const zlibContents = gzipSync(contents, );
     fs.writeFileSync(writePath, zlibContents);
     process.stdout.write(sha);
 }
 
-async function catFile(args: string[]): Promise<void> {
+function catFile(args: string[]): void {
    const [,, sha] = args;
    const path = objectPathFromSha(sha);
    const fileBuffer = fs.readFileSync(path);
 
-   const fileUnzip = await promisify(unzip)(fileBuffer);
+   const fileUnzip = unzipSync(fileBuffer);
    const [, content] = splitBlob(fileUnzip);
     process.stdout.write(content);
 }
