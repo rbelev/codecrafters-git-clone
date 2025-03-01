@@ -33,7 +33,7 @@ async function hashObject(args: string[]): Promise<void> {
     const sizeBytes = Buffer.byteLength(file);
 
     const contents = ['blob', ' ', sizeBytes, '\0', file].join('');
-    const sha = crypto.createHash('md5').update(contents).digest('hex');
+    const sha = crypto.createHash('sha1').update(contents).digest('hex');
     const writePath = objectPathFromSha(sha);
     const dir = path.dirname(writePath);
     fs.mkdirSync(dir, { recursive: true });
