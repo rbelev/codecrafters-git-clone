@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
@@ -9,6 +10,7 @@ const command = args[0];
 enum Commands {
     Init = "init",
     CatFile = "cat-file",
+    HashObject = "hash-object",
 }
 
 switch (command) {
@@ -18,8 +20,24 @@ switch (command) {
     case Commands.CatFile:
         await catFile(args);
         break;
+    case Commands.HashObject:
+        await hashObject(args);
+        break;
     default:
         throw new Error(`Unknown command ${command}`);
+}
+
+async function hashObject(args: string[]): Promise<void> {
+    const [,, fileName] = args;
+    const file = fs.readFileSync(fileName).toString();
+    const sizeBytes = Buffer.byteLength(file);
+
+    const contents = ['blob', ' ', sizeBytes, '\0', file].join('');
+    const sha = crypto.createHash('md5').update(contents).digest('hex');
+    const writePath = objectPathFromSha(sha);
+
+    fs.writeFileSync(writePath, contents);
+    process.stdout.write(sha);
 }
 
 async function catFile(args: string[]): Promise<void> {
