@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { unzip } from "node:zlib";
+import * as zlib from "node:zlib";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -38,7 +39,8 @@ async function hashObject(args: string[]): Promise<void> {
     const dir = path.dirname(writePath);
     fs.mkdirSync(dir, { recursive: true });
 
-    fs.writeFileSync(writePath, contents, { });
+    const zlibContents = zlib.gzipSync(contents);
+    fs.writeFileSync(writePath, zlibContents);
     process.stdout.write(sha);
 }
 
