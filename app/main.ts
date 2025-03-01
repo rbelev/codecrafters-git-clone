@@ -29,12 +29,11 @@ async function catFile(args: string[]): Promise<void> {
 
    const fileUnzip = await promisify(unzip)(fileBuffer);
    const [, content] = splitBlob(fileUnzip);
-   console.log(content);
+    process.stdout.write(content);
 }
 
 function objectPathFromSha(sha: string): string {
-    const prefix = sha.slice(0, 2);
-    return path.join('.git', 'objects', prefix, sha);
+    return path.join('.git', 'objects', sha.slice(0, 2), sha.slice(2));
 }
 
 function splitBlob(file: Buffer): [number, string] {
@@ -42,7 +41,7 @@ function splitBlob(file: Buffer): [number, string] {
    const blobSizeLine = file.toString('utf8', 0, sizeLineDelimiter);
    const size = Number.parseInt(blobSizeLine.slice(5), 10);
 
-    const content = file.toString('utf8', sizeLineDelimiter);
+    const content = file.toString('utf8', sizeLineDelimiter + 1);
 
     return [size, content];
 }
