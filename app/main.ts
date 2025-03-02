@@ -10,6 +10,7 @@ enum Commands {
     Init = "init",
     CatFile = "cat-file",
     HashObject = "hash-object",
+    LsTree = "ls-tree",
 }
 
 switch (command) {
@@ -20,13 +21,56 @@ switch (command) {
         catFile(args);
         break;
     case Commands.HashObject:
-        await hashObject(args);
+        hashObject(args);
         break;
+    case Commands.LsTree:
+       readLsTree(args);
+       break;
     default:
         throw new Error(`Unknown command ${command}`);
 }
 
-async function hashObject(args: string[]): Promise<void> {
+type LsTree = {
+    size: number;
+    blobs: {
+        mode: string;
+        name: string;
+        sha: string;
+    }[];
+}
+
+function readLsTree(args: string[]): LsTree {
+    const [_ls, _nameOnly, treeSha] = args;
+    const treePath = objectPathFromSha(treeSha);
+    const file = fs.readFileSync(treePath).toString();
+    const blobs = [...parseTreeFile(file)];
+    blobs.forEach(blob => {
+        console.log(blob.name);
+    });
+    return {
+        size: 0,
+        blobs,
+    };
+}
+
+
+function* parseTreeFile(file: string): Generator<LsTree["blobs"][0]> {
+    let startOfNextBlob = file.indexOf("\x00", 0);
+    if (startOfNextBlob === -1) return;
+    while (true) {
+        let endName = file.indexOf("\x00", startOfNextBlob);
+        if (endName !== -1) return;
+        endName += 20;
+        const blob = file.slice(startOfNextBlob, endName);
+        const match = /^(?<mode>\d+) (?<name>.+)\x00(?<sha>.{20})/g.exec(blob);
+        if (!match) return;
+        yield match.groups! as any;
+        startOfNextBlob = endName;
+    }
+}
+
+
+function hashObject(args: string[]): void {
     const [,, fileName] = args;
     const file = fs.readFileSync(fileName).toString();
     const sizeBytes = Buffer.byteLength(file);
@@ -43,6 +87,7 @@ async function hashObject(args: string[]): Promise<void> {
     process.stdout.write(sha);
 }
 
+
 function catFile(args: string[]): void {
    const [,, sha] = args;
    const path = objectPathFromSha(sha);
@@ -53,9 +98,11 @@ function catFile(args: string[]): void {
     process.stdout.write(content);
 }
 
+
 function objectPathFromSha(sha: string): string {
     return path.join('.git', 'objects', sha.slice(0, 2), sha.slice(2));
 }
+
 
 function splitBlob(file: Buffer): [number, string] {
    const sizeLineDelimiter = file.indexOf('\0');
@@ -66,6 +113,7 @@ function splitBlob(file: Buffer): [number, string] {
 
     return [size, content];
 }
+
 
 function init(): void {
     fs.mkdirSync(".git", { recursive: true });
