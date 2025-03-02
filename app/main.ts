@@ -24,7 +24,11 @@ switch (command) {
         hashObject(args);
         break;
     case Commands.LsTree:
-       readLsTree(args);
+       const tree = readLsTree(args);
+        tree.blobs.forEach((blob) => {
+            // console.log(`${blob.mode} tree ${blob.sha} ${blob.name}`);
+            console.log(`${blob.name}`);
+        });
        break;
     default:
         throw new Error(`Unknown command ${command}`);
@@ -43,41 +47,36 @@ function readLsTree(args: string[]): LsTree {
     const [_ls, _nameOnly, treeSha] = args;
     const treePath = objectPathFromSha(treeSha);
     const file = unzipSync(fs.readFileSync(treePath));
-    const blobs = [...parseTreeFile(file)];
-    blobs.forEach(blob => {
-        // console.log(`${blob.mode} tree ${blob.sha} ${blob.name}`);
-        console.log(`${blob.name}`);
-    });
-    return {
-        size: 0,
-        blobs,
-    };
+    return parseTreeFile(file);
 }
 
 
-function* parseTreeFile(file: Buffer): Generator<LsTree["blobs"][0]> {
-    let startOfNextBlob = file.indexOf(0, 0);
-    if (startOfNextBlob === -1) return;
+function parseTreeFile(file: Buffer): LsTree {
+    const headerEndIndex = file.indexOf(0, 0);
+    const [type, size] = file.toString('ascii', 0, headerEndIndex).split(' ');
+    if (type !== 'tree') throw new Error("not a tree file");
 
-    const header = file.subarray(0, startOfNextBlob).toString();
-    if (!header.startsWith('tree')) throw new Error("not a tree file");
+    const blobs: LsTree['blobs'] = []
 
-    startOfNextBlob += 1;
+    let startOfBlob = headerEndIndex + 1;
     while (true) {
-        let endName = file.indexOf(0, startOfNextBlob);
-        if (endName === -1) return;
-        const fileInfo = file.subarray(startOfNextBlob, endName).toString();
+        let endOfName = file.indexOf(0, startOfBlob);
+        if (endOfName === -1) break;
+        const fileInfo = file.toString('ascii', startOfBlob, endOfName);
         const modeIndex = fileInfo.indexOf(' ')
         const mode = fileInfo.substring(0, modeIndex);
         const name = fileInfo.substring(modeIndex + 1);
 
-        const endShaIndex = endName + 1 + 20 + 1
-        const sha = file.subarray(endName + 1, endShaIndex).toString('hex');
+        const startOfSha = endOfName + 1;
+        const endOfSha = startOfSha + 20;
+        const sha = file.toString('hex', startOfSha, endOfSha + 1);
 
-        yield { mode, name, sha }
+        blobs.push({ mode, name, sha })
 
-        startOfNextBlob = endShaIndex;
+        startOfBlob = endOfSha;
     }
+
+    return { size: +size, blobs };
 }
 
 
@@ -116,7 +115,7 @@ function objectPathFromSha(sha: string): string {
 
 
 function splitBlob(file: Buffer): [number, string] {
-   const sizeLineDelimiter = file.indexOf('\0');
+   const sizeLineDelimiter = file.indexOf(0);
    const blobSizeLine = file.toString('utf8', 0, sizeLineDelimiter);
    const size = Number.parseInt(blobSizeLine.slice(5), 10);
 
