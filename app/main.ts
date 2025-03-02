@@ -55,6 +55,8 @@ function readLsTree(args: string[]): LsTree {
 
 
 function* parseTreeFile(file: string): Generator<LsTree["blobs"][0]> {
+    if (!file.startsWith('tree')) throw new Error("not a tree file");
+
     let startOfNextBlob = file.indexOf("\x00", 0);
     if (startOfNextBlob === -1) return;
     while (true) {
