@@ -11,6 +11,7 @@ enum Commands {
     CatFile = "cat-file",
     HashObject = "hash-object",
     LsTree = "ls-tree",
+    WriteTree = "write-tree",
 }
 
 switch (command) {
@@ -21,7 +22,8 @@ switch (command) {
         catFile(args);
         break;
     case Commands.HashObject:
-        hashObject(args);
+        const [, , fileName] = args;
+        hashObject(fileName);
         break;
     case Commands.LsTree:
        const tree = readLsTree(args);
@@ -30,22 +32,46 @@ switch (command) {
             console.log(`${blob.name}`);
         });
        break;
+   case Commands.WriteTree:
+       writeTree();
+       break;
     default:
         throw new Error(`Unknown command ${command}`);
 }
 
+type Sha = string & { _brand: 'sha' }
 type LsTree = {
     size: number;
     blobs: {
         mode: string;
         name: string;
-        sha: string;
+        sha: Sha;
     }[];
 }
 
+
+function writeTree(dirPath: string = '.'): Sha {
+    const contents: LsTree["blobs"] = [];
+
+    const files = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const file of files) {
+        const subPath = path.join(dirPath, file.name)
+        if (file.isDirectory()) {
+            let sha = writeTree(subPath);
+            contents.push({mode: "mode", name: file.name, sha });
+        } else {
+            let sha = hashObject(subPath);
+            contents.push({ mode: "mode", name: file.name, sha });
+        }
+    }
+
+    return hashTree({ size: 0, blobs: contents })
+}
+
+
 function readLsTree(args: string[]): LsTree {
     const [_ls, _nameOnly, treeSha] = args;
-    const treePath = objectPathFromSha(treeSha);
+    const treePath = objectPathFromSha(treeSha as Sha);
     const file = unzipSync(fs.readFileSync(treePath));
     return parseTreeFile(file);
 }
@@ -69,7 +95,7 @@ function parseTreeFile(file: Buffer): LsTree {
 
         const startOfSha = endOfName + 1;
         const endOfSha = startOfSha + 20;
-        const sha = file.toString('hex', startOfSha, endOfSha + 1);
+        const sha = file.toString('hex', startOfSha, endOfSha + 1) as Sha;
 
         blobs.push({ mode, name, sha })
 
@@ -80,27 +106,52 @@ function parseTreeFile(file: Buffer): LsTree {
 }
 
 
-function hashObject(args: string[]): void {
-    const [,, fileName] = args;
+function hashObject(fileName: string): Sha {
     const file = fs.readFileSync(fileName).toString();
     const sizeBytes = Buffer.byteLength(file);
 
-    const contents = `blob ${sizeBytes}\0${file}`;
-    // console.log(`contents: ${contents}`);
-    const sha = crypto.createHash('sha1').update(contents).digest('hex');
+    const content = `blob ${sizeBytes}\0${file}`;
+    return writeObjectContents(content);
+}
+
+
+function writeObjectContents(content: string): Sha {
+    const sha = createSha(content);
     const writePath = objectPathFromSha(sha);
     const dir = path.dirname(writePath);
     fs.mkdirSync(dir, { recursive: true });
 
-    const zlibContents = deflateSync(contents);
+    const zlibContents = deflateSync(content);
     fs.writeFileSync(writePath, zlibContents);
-    process.stdout.write(sha);
+    return sha;
+}
+
+
+function hashTree(tree: LsTree): Sha {
+    const contents = [`tree ${tree.size}\0`]
+    for (let blob of tree.blobs) {
+        const blobTreeLine = `${blob.mode} ${blob.name}\0${binarySha(blob.sha)}`;
+        contents.push(blobTreeLine);
+    }
+    const content = contents.join('');
+    return writeObjectContents(content)
+}
+
+
+function createSha(contents: string): Sha {
+    const sha = crypto.createHash('sha1').update(contents).digest('hex');
+    return sha as Sha
+}
+
+
+function binarySha(sha: Sha): string {
+   return Buffer.from(sha, 'hex').toString('binary')
 }
 
 
 function catFile(args: string[]): void {
    const [,, sha] = args;
-   const path = objectPathFromSha(sha);
+   const path = objectPathFromSha(sha as Sha);
    const fileBuffer = fs.readFileSync(path);
 
    const fileUnzip = unzipSync(fileBuffer);
@@ -109,7 +160,7 @@ function catFile(args: string[]): void {
 }
 
 
-function objectPathFromSha(sha: string): string {
+function objectPathFromSha(sha: Sha): string {
     return path.join('.git', 'objects', sha.slice(0, 2), sha.slice(2));
 }
 
