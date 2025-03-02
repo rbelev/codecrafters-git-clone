@@ -59,12 +59,13 @@ function* parseTreeFile(file: string): Generator<LsTree["blobs"][0]> {
 
     let startOfNextBlob = file.indexOf("\x00", 0);
     if (startOfNextBlob === -1) return;
+    startOfNextBlob += 1;
     while (true) {
         let endName = file.indexOf("\x00", startOfNextBlob);
-        if (endName !== -1) return;
-        endName += 20;
+        if (endName === -1) return;
+        endName += 1 + 20;
         const blob = file.slice(startOfNextBlob, endName);
-        const match = /^(?<mode>\d+) (?<name>.+)\x00(?<sha>.{20})/g.exec(blob);
+        const match = /^(?<mode>\d+) (?<name>[^\x00]+)\x00(?<sha>.{18,20})/g.exec(blob);
         if (!match) return;
         yield match.groups! as any;
         startOfNextBlob = endName;
