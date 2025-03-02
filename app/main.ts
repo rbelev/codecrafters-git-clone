@@ -45,7 +45,8 @@ function readLsTree(args: string[]): LsTree {
     const file = unzipSync(fs.readFileSync(treePath));
     const blobs = [...parseTreeFile(file)];
     blobs.forEach(blob => {
-        console.log(blob.name);
+        // console.log(`${blob.mode} tree ${blob.sha} ${blob.name}`);
+        console.log(`${blob.name}`);
     });
     return {
         size: 0,
