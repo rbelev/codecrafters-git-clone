@@ -42,7 +42,7 @@ type LsTree = {
 function readLsTree(args: string[]): LsTree {
     const [_ls, _nameOnly, treeSha] = args;
     const treePath = objectPathFromSha(treeSha);
-    const file = fs.readFileSync(treePath).toString();
+    const file = unzipSync(fs.readFileSync(treePath)).toString();
     const blobs = [...parseTreeFile(file)];
     blobs.forEach(blob => {
         console.log(blob.name);
