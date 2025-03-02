@@ -42,7 +42,7 @@ type LsTree = {
 function readLsTree(args: string[]): LsTree {
     const [_ls, _nameOnly, treeSha] = args;
     const treePath = objectPathFromSha(treeSha);
-    const file = unzipSync(fs.readFileSync(treePath)).toString();
+    const file = unzipSync(fs.readFileSync(treePath));
     const blobs = [...parseTreeFile(file)];
     blobs.forEach(blob => {
         console.log(blob.name);
@@ -54,21 +54,28 @@ function readLsTree(args: string[]): LsTree {
 }
 
 
-function* parseTreeFile(file: string): Generator<LsTree["blobs"][0]> {
-    if (!file.startsWith('tree')) throw new Error("not a tree file");
-
-    let startOfNextBlob = file.indexOf("\x00", 0);
+function* parseTreeFile(file: Buffer): Generator<LsTree["blobs"][0]> {
+    let startOfNextBlob = file.indexOf(0, 0);
     if (startOfNextBlob === -1) return;
+
+    const header = file.subarray(0, startOfNextBlob).toString();
+    if (!header.startsWith('tree')) throw new Error("not a tree file");
+
     startOfNextBlob += 1;
     while (true) {
-        let endName = file.indexOf("\x00", startOfNextBlob);
+        let endName = file.indexOf(0, startOfNextBlob);
         if (endName === -1) return;
-        endName += 1 + 20;
-        const blob = file.slice(startOfNextBlob, endName);
-        const match = /^(?<mode>\d+) (?<name>[^\x00]+)\x00(?<sha>.{18,20})/g.exec(blob);
-        if (!match) return;
-        yield match.groups! as any;
-        startOfNextBlob = endName;
+        const fileInfo = file.subarray(startOfNextBlob, endName).toString();
+        const modeIndex = fileInfo.indexOf(' ')
+        const mode = fileInfo.substring(0, modeIndex);
+        const name = fileInfo.substring(modeIndex + 1);
+
+        const endShaIndex = endName + 1 + 20 + 1
+        const sha = file.subarray(endName + 1, endShaIndex).toString('hex');
+
+        yield { mode, name, sha }
+
+        startOfNextBlob = endShaIndex;
     }
 }
 
