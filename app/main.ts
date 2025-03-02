@@ -31,7 +31,7 @@ async function hashObject(args: string[]): Promise<void> {
     const file = fs.readFileSync(fileName).toString();
     const sizeBytes = Buffer.byteLength(file);
 
-    const contents = `blob ${sizeBytes}0${file}`;
+    const contents = `blob ${sizeBytes}\0${file}`;
     // console.log(`contents: ${contents}`);
     const sha = crypto.createHash('sha1').update(contents).digest('hex');
     const writePath = objectPathFromSha(sha);
