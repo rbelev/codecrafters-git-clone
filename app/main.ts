@@ -12,6 +12,7 @@ enum Commands {
     HashObject = "hash-object",
     LsTree = "ls-tree",
     WriteTree = "write-tree",
+    CommitTree = "commit-tree",
 }
 
 switch (command) {
@@ -39,6 +40,11 @@ switch (command) {
        console.log(`${sha}`);
        break;
    }
+   case Commands.CommitTree: {
+       const sha = commitTree(args);
+       console.log(`${sha}`);
+       break;
+   }
    default:
        throw new Error(`Unknown command ${command}`);
 }
@@ -51,6 +57,24 @@ type LsTree = {
         name: string;
         sha: Sha;
     }[];
+}
+
+
+function commitTree(args: string[]): Sha {
+    const [_cmd, treeSha, _p, parentSha, _m, message] = args;
+
+    const contents = `\
+tree ${treeSha}
+parent ${parentSha}
+author My Name <my_name@gmail.com> 946684800 -0800
+committer My Name <my_name@gmail.com> 946684800 -0800
+
+${message}
+`;
+    const size = Buffer.byteLength(contents);
+    const fullBuffer = `commit ${size}\0${contents}`;
+
+    return writeObjectContents(fullBuffer);
 }
 
 
