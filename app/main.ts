@@ -119,7 +119,12 @@ function writeObjectContents(content: string): Sha {
     const sha = createSha(content);
     const writePath = objectPathFromSha(sha);
     const dir = path.dirname(writePath);
-    fs.mkdirSync(dir, { recursive: true });
+    try {
+        fs.mkdirSync(dir, { recursive: true });
+    } catch (error: unknown) {
+        if (!(error instanceof Error)) throw error;
+        if (error.name !== 'EEXIST') throw error;
+    }
 
     const zlibContents = deflateSync(content);
     fs.writeFileSync(writePath, zlibContents);
