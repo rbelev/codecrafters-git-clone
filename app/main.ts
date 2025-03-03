@@ -120,7 +120,7 @@ function writeObjectContents(content: string): Sha {
     const writePath = objectPathFromSha(sha);
     const dir = path.dirname(writePath);
     try {
-        fs.mkdirSync(dir, { recursive: true });
+        fs.mkdirSync(dir);
     } catch (error: unknown) {
         if (!(error instanceof Error)) throw error;
         if (error.name !== 'EEXIST') throw error;
