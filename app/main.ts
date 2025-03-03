@@ -55,6 +55,7 @@ function writeTree(dirPath: string = '.'): Sha {
 
     const files = fs.readdirSync(dirPath, { withFileTypes: true });
     for (const file of files) {
+        if (file.name === '.git') continue;
         const subPath = path.join(dirPath, file.name)
         if (file.isDirectory()) {
             let sha = writeTree(subPath);
@@ -123,8 +124,7 @@ function writeObjectContents(content: string): Sha {
         fs.mkdirSync(dir);
     } catch (error: unknown) {
         if (!(error instanceof Error)) throw error;
-        console.log(`${error} ${error.name} ${JSON.stringify({ ...error })}`);
-        if (error.name !== 'EEXIST') throw error;
+        if (!('code' in error) || error.code !== 'EEXIST') throw error;
     }
 
     const zlibContents = deflateSync(content);
