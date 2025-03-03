@@ -21,10 +21,12 @@ switch (command) {
     case Commands.CatFile:
         catFile(args);
         break;
-    case Commands.HashObject:
+    case Commands.HashObject: {
         const [, , fileName] = args;
-        hashObject(fileName);
+        const sha = hashObject(fileName);
+        console.log(sha);
         break;
+    }
     case Commands.LsTree:
        const tree = readLsTree(args);
         tree.blobs.forEach((blob) => {
@@ -32,11 +34,13 @@ switch (command) {
             console.log(`${blob.name}`);
         });
        break;
-   case Commands.WriteTree:
-       writeTree();
+   case Commands.WriteTree: {
+       const sha = writeTree();
+       console.log(`${sha}`);
        break;
-    default:
-        throw new Error(`Unknown command ${command}`);
+   }
+   default:
+       throw new Error(`Unknown command ${command}`);
 }
 
 type Sha = string & { _brand: 'sha' }
@@ -53,20 +57,28 @@ type LsTree = {
 function writeTree(dirPath: string = '.'): Sha {
     const contents: LsTree["blobs"] = [];
 
-    const files = fs.readdirSync(dirPath, { withFileTypes: true });
+    const files = fs.readdirSync(dirPath, { withFileTypes: true })
+        .filter((file) => file.name !== '.git')
+        .sort((a, b) => a.name.localeCompare(b.name));
+
     for (const file of files) {
-        if (file.name === '.git') continue;
         const subPath = path.join(dirPath, file.name)
         if (file.isDirectory()) {
             let sha = writeTree(subPath);
-            contents.push({mode: "mode", name: file.name, sha });
+            // console.debug(`recursive writeTree returned: ${subPath} @ ${sha}`);
+            contents.push({ mode: "40000", name: file.name, sha });
         } else {
             let sha = hashObject(subPath);
-            contents.push({ mode: "mode", name: file.name, sha });
+            const mode = ((file) => {
+                if (file.isSymbolicLink()) return "120000";
+                if (file.isFile()) return "100644";
+                return "100755";
+            })(file)
+            contents.push({ mode, name: file.name, sha });
         }
     }
 
-    return hashTree({ size: 0, blobs: contents })
+    return hashTree(contents)
 }
 
 
@@ -108,19 +120,19 @@ function parseTreeFile(file: Buffer): LsTree {
 
 
 function hashObject(fileName: string): Sha {
-    const file = fs.readFileSync(fileName).toString();
-    const sizeBytes = Buffer.byteLength(file);
+    const file = fs.readFileSync(fileName, { encoding: 'ascii' });
+    const sizeBytes = file.length; //Buffer.byteLength(file);
 
     const content = `blob ${sizeBytes}\0${file}`;
     return writeObjectContents(content);
 }
 
 
-function writeObjectContents(content: string): Sha {
+function writeObjectContents(content: string | Buffer): Sha {
     const sha = createSha(content);
     const writePath = objectPathFromSha(sha);
-    const dir = path.dirname(writePath);
     try {
+        const dir = path.dirname(writePath);
         fs.mkdirSync(dir);
     } catch (error: unknown) {
         if (!(error instanceof Error)) throw error;
@@ -133,25 +145,31 @@ function writeObjectContents(content: string): Sha {
 }
 
 
-function hashTree(tree: LsTree): Sha {
-    const contents = [`tree ${tree.size}\0`]
-    for (let blob of tree.blobs) {
-        const blobTreeLine = `${blob.mode} ${blob.name}\0${binarySha(blob.sha)}`;
-        contents.push(blobTreeLine);
+function hashTree(tree: LsTree["blobs"]): Sha {
+    const contents: Buffer[] = []
+    for (let blob of tree) {
+        contents.push(Buffer.from(`${blob.mode} ${blob.name}\0`, 'ascii'));
+        contents.push(Buffer.from(binarySha(blob.sha), 'binary'));
     }
-    const content = contents.join('');
-    return writeObjectContents(content)
+
+    const size = contents.reduce((length, buffer) => {
+        return length + buffer.byteLength;
+    }, 0);
+    contents.unshift(Buffer.from(`tree ${size}\0`, 'ascii'));
+
+    const fullBuffer = Buffer.concat(contents);
+    return writeObjectContents(fullBuffer);
 }
 
 
-function createSha(contents: string): Sha {
+function createSha(contents: string | Buffer): Sha {
     const sha = crypto.createHash('sha1').update(contents).digest('hex');
     return sha as Sha
 }
 
 
 function binarySha(sha: Sha): string {
-   return Buffer.from(sha, 'hex').toString('binary')
+    return Buffer.from(sha, 'hex').toString('binary');
 }
 
 
