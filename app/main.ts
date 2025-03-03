@@ -123,6 +123,7 @@ function writeObjectContents(content: string): Sha {
         fs.mkdirSync(dir);
     } catch (error: unknown) {
         if (!(error instanceof Error)) throw error;
+        console.log(`${error} ${error.name} ${JSON.stringify({ ...error })}`);
         if (error.name !== 'EEXIST') throw error;
     }
 
