@@ -7,9 +7,9 @@ This is a clone of my solution, as iterated through their cli and tests.
  - [ ] Improve helpers, esp fn names, to clarify read vs write vs file load
  - [ ] Actually handle REF-delta, not error and abandon rest of packfile
  - [ ] Convert main and sloppy cmdline args to Commander
+ - [ ] Remove console.logs from test runs without debugger
 
 ---
-
 [![progress-banner](https://backend.codecrafters.io/progress/git/8d79512b-ae04-4119-a028-33eecab83985)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
 
 This is a starting point for TypeScript solutions to the
