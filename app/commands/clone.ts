@@ -19,6 +19,7 @@ export async function clone(args: string[]): Promise<void> {
     await reconstructFileTreeFromPackEntries(entries, shaToContents);
 }
 
+
 async function reconstructFileTreeFromPackEntries(entries: pack.PackItem[], shaMap: Map<string, Buffer>): Promise<void> {
     const commitEntry = entries.find((entry) => entry.type === 'Commit');
     if (!commitEntry) {
@@ -28,6 +29,7 @@ async function reconstructFileTreeFromPackEntries(entries: pack.PackItem[], shaM
     const commitTreeSha = commit.extractTreeShaFromCommit(commitEntry.content);
     await reconstructTree(commitTreeSha, shaMap);
 }
+
 
 async function reconstructTree(treeSha: string, shaMap: Map<string, Buffer>): Promise<void> {
     console.log(`reconstructTree: ${treeSha} @ ${process.cwd()}`);
@@ -64,33 +66,6 @@ async function reconstructTree(treeSha: string, shaMap: Map<string, Buffer>): Pr
     }
 }
 
-// contents.push({ mode: "40000", name: file.name, sha: treeSha });
-// } else {
-//     let objectSha = await object.writeObjectContents(await object.hashObject(subPath));
-//     const mode = ((file) => {
-//         if (file.isSymbolicLink()) return "120000";
-//         if (file.isFile()) return "100644";
-//         return "100755";
-//     })(file)
-    // for (const tree of entries.filter((entry) => entry.type === 'Tree')) {
-    //     const { blobs } = trees.parseTreeFile(tree.content, { skipHeader: true });
-    //
-    //     for (const blob of blobs) {
-    //         if (blob.mode !== '100644') continue;
-    //
-    //         const contents = shaToContents.get(blob.sha);
-    //         if (!contents) {
-    //             console.error(`blob ${sha} not found`);
-    //             continue;
-    //         }
-    //         const filePath = path.join(blob.name);
-    //         await fs.writeFile(filePath, contents);
-    //         console.log(`wrote ${filePath}: ${contents.slice(0, 10)}...`);
-    //     }
-    // }
-    //
-    // console.log(`blob`);
-// }
 
 async function writeEntriesIntoGit(entries: pack.PackItem[]): Promise<Map<string, Buffer>> {
     const shaToContent = new Map<string, Buffer>();
