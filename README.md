@@ -2,6 +2,12 @@ Shout out and credit to CodeCrafter for this challenge. Highly recommended.
 
 This is a clone of my solution, as iterated through their cli and tests.
 
+### TODO/Shortfalls:
+ - [ ] fix eslint to get 2 space indent 
+ - [ ] Improve helpers, esp fn names, to clarify read vs write vs file load
+ - [ ] Actually handle REF-delta, not error and abandon rest of packfile
+ - [ ] Convert main and sloppy cmdline args to Commander
+
 ---
 
 [![progress-banner](https://backend.codecrafters.io/progress/git/8d79512b-ae04-4119-a028-33eecab83985)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
