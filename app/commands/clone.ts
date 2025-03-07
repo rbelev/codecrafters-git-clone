@@ -4,8 +4,8 @@ import { init } from './index.ts';
 import { commit, gitUploadPack, object, pack, trees } from '../helpers/index.ts';
 
 
-export async function clone(args: string[]): Promise<void> {
-    const [, target, dir] = args;
+export async function clone(target: string, dir: string): Promise<void> {
+    // const [, target, dir] = args;
 
     const packBuffer = await gitUploadPack.getRepoPack(target);
     const entries = await pack.breakdownPack(packBuffer);
@@ -23,7 +23,7 @@ export async function clone(args: string[]): Promise<void> {
 async function reconstructFileTreeFromPackEntries(entries: pack.PackItem[], shaMap: Map<string, Buffer>): Promise<void> {
     const commitEntry = entries.find((entry) => entry.type === 'Commit');
     if (!commitEntry) {
-        console.log(`reconstruct: no Commit entry`);
+        console.error(`reconstruct: no Commit entry`);
         return;
     }
     const commitTreeSha = commit.extractTreeShaFromCommit(commitEntry.content);
@@ -32,11 +32,11 @@ async function reconstructFileTreeFromPackEntries(entries: pack.PackItem[], shaM
 
 
 async function reconstructTree(treeSha: string, shaMap: Map<string, Buffer>): Promise<void> {
-    console.log(`reconstructTree: ${treeSha} @ ${process.cwd()}`);
+    // console.log(`reconstructTree: ${treeSha} @ ${process.cwd()}`);
 
     const treeBlob = shaMap.get(treeSha);
     if (!treeBlob) {
-        console.log(`reconstructTree: tree blob does not exist`);
+        console.error(`reconstructTree: tree blob does not exist`);
         return;
     }
 
@@ -45,11 +45,22 @@ async function reconstructTree(treeSha: string, shaMap: Map<string, Buffer>): Pr
         if (blob.mode === '100644') {
             const fileBlob = shaMap.get(blob.sha);
             if (!fileBlob) {
-                console.log('reconstructTree: file blob does not exist');
+                console.error('reconstructTree: file blob does not exist');
                 continue;
             }
             const { content } = object.splitBlob(fileBlob);
             await fs.writeFile(blob.name, content);
+            continue;
+        }
+
+        if (blob.mode === '100755') {
+            const fileBlob = shaMap.get(blob.sha);
+            if (!fileBlob) {
+                console.error('reconstructTree: executable blob does not exist');
+                continue;
+            }
+            const { content } = object.splitBlob(fileBlob);
+            await fs.writeFile(blob.name, content, { mode: 0o777 });
             continue;
         }
 

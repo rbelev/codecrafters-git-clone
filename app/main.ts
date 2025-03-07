@@ -1,47 +1,79 @@
 import * as commands from './commands/index.ts';
-import { Commands } from './commands/index.ts';
 import type { Sha } from './helpers/index.ts';
 
-const args = process.argv.slice(2);
-const command = args[0];
+import { Command } from 'commander';
+const program = new Command();
+program.version('0.1.0');
 
-switch (command) {
-    case Commands.Init:
+program
+    .command('init')
+    .description('Create .git and subdirectories')
+    .action(async () => {
         await commands.init.init();
-        break;
-    case Commands.CatFile: {
-        const file = await commands.cat_file.catFile(args.at(-1) as Sha);
+    });
+
+program
+    .command('cat-file <sha>')
+    .description('Print file contents at sha')
+    .option('-p', 'pretty print contents based on type')
+    .action(async (sha: string, cmdObj: Command) => {
+        const file = await commands.cat_file.catFile(sha as Sha);
         process.stdout.write(file);
-        break;
-    }
-    case Commands.HashObject: {
-        const [, , fileName] = args;
+    });
+
+program
+    .command('hash-object <fileName>')
+    .description('Save file within .git/objects, printing sha')
+    .action(async (fileName: string, cmdObj: Command) => {
         const sha = await commands.hash_object.hashObject(fileName);
         console.log(sha);
-        break;
-    }
-    case Commands.LsTree: {
-        const tree = await commands.ls_tree.readLsTree(args);
+    });
+
+program
+    .command('ls-tree <sha>')
+    .description('List contents of tree sha')
+    .option('--name-only', 'Print name only')
+    .action(async (sha: string, cmdObj) => {
+        const tree = await commands.ls_tree.readLsTree(sha);
         tree.blobs.forEach((blob) => {
-            // console.log(`${blob.mode} tree ${blob.sha} ${blob.name}`);
-            console.log(`${blob.name}`);
+            if (cmdObj.nameOnly) {
+                console.log(`${blob.name}`);
+            } else {
+                // TODO: Improve slapdash spacing.
+                console.log(`${blob.mode.padEnd(6, ' ')} ${blob.fileType.padEnd('executable'.length, ' ')} ${blob.sha} ${blob.name}`);
+            }
         });
-        break;
-    }
-    case Commands.WriteTree: {
-       const sha = await commands.write_tree.writeTree();
-       console.log(`${sha}`);
-       break;
-    }
-   case Commands.CommitTree: {
-       const sha = await commands.commit_tree.commitTree(args);
-       console.log(`${sha}`);
-       break;
-   }
-   case Commands.Clone: {
-       await commands.clone.clone(args);
-       break;
-   }
-   default:
-       throw new Error(`Unknown command ${command}`);
-}
+    })
+
+program
+    .command('write-tree')
+    .description('Write working directory into .git')
+    .action(async (cmdObj: Command) => {
+        const sha = await commands.write_tree.writeTree();
+        console.log(`${sha}`);
+    });
+
+program
+    .command('commit-tree <treeSha>')
+    .description('Create git commit')
+    .requiredOption('-p, --parent <parentSha>', 'Parent to the tree')
+    .requiredOption('-m, --message <message>', 'Message for commit')
+    .action(async (treeSha: string, cmdObj: any) => {
+
+        // const [_cmd, treeSha, _p, parentSha, _m, message] = args;
+        const sha = await commands.commit_tree.commitTree({
+            treeSha,
+            parentSha: cmdObj.parentSha as Sha,
+            message: cmdObj.message,
+        });
+        console.log(`${sha}`);
+    })
+
+program
+    .command('clone <remote> <some_dir>')
+    .description('Clone a remote git repository locally')
+    .action(async (remote: string, someDir: string, cmdObj) => {
+        await commands.clone.clone(remote, someDir)
+    })
+
+await program.parseAsync(process.argv);

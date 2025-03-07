@@ -2,10 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import {object, sha, type Sha} from "./index.ts";
 
+
 export interface LsTree {
     size: number;
     blobs: {
         mode: string;
+        fileType: string
         name: string;
         sha: Sha;
     }[];
@@ -34,7 +36,12 @@ export function parseTreeFile(file: Buffer, options?: { skipHeader: boolean }): 
         const endOfSha = startOfSha + 20;
         const sha = file.toString('hex', startOfSha, endOfSha) as Sha;
 
-        blobs.push({ mode, name, sha })
+        blobs.push({
+            mode,
+            fileType: modeToType[mode as unknown as keyof typeof modeToType],
+            name,
+            sha,
+        });
 
         startOfBlob = endOfSha;
     }
@@ -78,7 +85,12 @@ export async function readTree(dirPath = '.'): Promise<Sha> {
         if (file.isDirectory()) {
             const treeSha = await readTree(subPath);
             // console.debug(`recursive writeTree returned: ${subPath} @ ${sha}`);
-            contents.push({ mode: "40000", name: file.name, sha: treeSha });
+            contents.push({
+                mode: "40000",
+                fileType: modeToType['40000'],
+                name: file.name,
+                sha: treeSha,
+            });
         } else {
             const objectSha = await object.writeObjectContents(await object.hashObject(subPath));
             const mode = ((file) => {
@@ -86,10 +98,22 @@ export async function readTree(dirPath = '.'): Promise<Sha> {
                 if (file.isFile()) return "100644";
                 return "100755";
             })(file)
-            contents.push({ mode, name: file.name, sha: objectSha });
+            contents.push({
+                mode,
+                fileType: modeToType[mode]!,
+                name: file.name,
+                sha: objectSha,
+            });
         }
     }
 
     const tree = hashTree(contents);
     return object.writeObjectContents(tree);
 }
+
+const modeToType = {
+    40000: 'tree',
+    120000: 'symlink',
+    100644: 'file',
+    100755: 'executable'
+} as const;

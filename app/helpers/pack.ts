@@ -25,14 +25,14 @@ export async function breakdownPack(pack: ArrayBuffer): Promise<PackItem[]> {
     const version = Buffer.from(pack, headerStart + 4, 4).readUInt32BE(0);
     const itemsContained = Buffer.from(pack, headerStart + 8, 4).readUint32BE();
 
-    console.log(`breakdownPack: ${header} v${version} #${itemsContained} len:${pack.byteLength}`);
+    // console.log(`breakdownPack: ${header} v${version} #${itemsContained} len:${pack.byteLength}`);
 
     let cursor = headerStart + 12;
     const entries: PackItem[] = [];
     for (let i = 0; i < itemsContained; i += 1) {
 
         const pointer = extractPackEntryTypeAndSize(pack, cursor);
-        console.log(`breakdownPack: ${pointer.type} ${pointer.size} ${pointer.position}/${pack.byteLength}`)
+        // console.log(`breakdownPack: ${pointer.type} ${pointer.size} ${pointer.position}/${pack.byteLength}`)
         try {
             const entry = await getNextEntry(pack, pointer);
             entries[i] = { content: entry.content, type: pointer.type };
@@ -90,7 +90,7 @@ async function getNextEntry(buffer: ArrayBuffer, pointer: EntryPointer): Promise
         //   Neither pulling a 20 byte sha or looking for \0 delimiting a name worked.
         const nullByte = zipContent.indexOf('\0');
         const baseObjectName = zipContent.subarray(0, nullByte).toString('ascii');
-        console.log(`getNextEntry: got ${nullByte}->'${baseObjectName}'`);
+        // console.log(`getNextEntry: got ${nullByte}->'${baseObjectName}'`);
         bytesConsumed += nullByte + 1;
     }
 
