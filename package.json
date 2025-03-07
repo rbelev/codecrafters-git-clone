@@ -7,7 +7,7 @@
     "build": "tsc",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "start": "node --experimental-strip-types ./app/main.ts",
+    "start": "NODE_NO_WARNINGS=1 NODE_OPTIONS=--experimental-strip-types node ./app/main.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "cat-file": "npm run start -- cat-file 14225c42a03630c8528007ea24fca972b9a37f8d"
   },
@@ -20,5 +20,8 @@
     "eslint": "^9.21.0",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.0"
+  },
+  "dependencies": {
+    "commander": "^13.1.0"
   }
 }

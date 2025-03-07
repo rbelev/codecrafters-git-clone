@@ -6,6 +6,7 @@ export * as init from './init.ts';
 export * as ls_tree from './ls-tree.ts';
 export * as write_tree from './write-tree.ts';
 
+// TODO: Utilize this list in Commander initialization for TypeScript completeness?
 export const Commands = {
     Init: 'init',
     CatFile: 'cat-file',

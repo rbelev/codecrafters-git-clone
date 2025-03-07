@@ -5,5 +5,6 @@ export * as sha from './sha.ts';
 export * as trees from './trees.ts';
 export * as pack from './pack.ts';
 
+export type { CommitTreeParams } from './commit.ts';
 export type { Sha } from './sha.ts';
 export type { LsTree } from './trees.ts';
