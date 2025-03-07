@@ -1,67 +1,122 @@
-import { promisify } from "node:util";
-import { unzip } from "node:zlib";
+import fs from "node:fs/promises";
+
+import { init } from './index.ts';
+import { commit, gitUploadPack, object, pack, sha, trees } from '../helpers/index.ts';
+
 
 export async function clone(args: string[]): Promise<void> {
     const [_clone, target, dir] = args;
 
-    const sha = await getHeadRef(target);
-    console.log(`head sha: ${sha}`);
-    const pack = await getWantedShaPack(target, sha);
-    breakdownPack(pack);
-    // console.log(`blob: ${blob}`);
+    const packBuffer = await gitUploadPack.getRepoPack(target);
+    const entries = await pack.breakdownPack(packBuffer);
+
+    // git init at target dir. chdir for successive file writes.
+    await fs.mkdir(dir, {recursive: true});
+    process.chdir(dir);
+    await init.init();
+
+    const shaToContents = await writeEntriesIntoGit(entries);
+    await reconstructFileTreeFromPackEntries(entries, shaToContents);
 }
 
-function breakdownPack(pack: ArrayBuffer): string {
-    const header = Buffer.from(pack, 0, 12).toString('utf8');
-    console.log(`header: ${header}`);
-    return header;
+async function reconstructFileTreeFromPackEntries(entries: pack.PackItem[], shaMap: Map<string, Buffer>): Promise<void> {
+    const commitEntry = entries.find((entry) => entry.type === 'Commit');
+    if (!commitEntry) {
+        console.log(`reconstruct: no Commit entry`);
+        return;
+    }
+    const commitTreeSha = commit.extractTreeShaFromCommit(commitEntry.content);
+    await reconstructTree(commitTreeSha, shaMap);
 }
 
-async function getWantedShaPack(gitUrl: string, sha: string): Promise<ArrayBuffer> {
-    const wantRequestBody = `0032want ${sha}\n00000009done\n`;
+async function reconstructTree(treeSha: string, shaMap: Map<string, Buffer>): Promise<void> {
+    console.log(`reconstructTree: ${treeSha} @ ${process.cwd()}`);
 
-    const repo = await fetch(`${gitUrl}/git-upload-pack`, {
-        method: 'post',
-        body: wantRequestBody,
-        headers: {
-            // "Accept": "application/x-git-upload-pack-result",
-            "accept-encoding": "gzip,deflate",
-            "Content-Type": "application/x-git-upload-pack-request",
-            // "Git-Protocol": "version=2",
-            // "Range": "bytes=0-",
-        },
-    });
-    if (!repo.ok) {
-        const errorBody = await repo.text();
-        throw new Error(`want fetch failed: ${repo.status} ${repo.statusText}: ${errorBody}`);
+    const treeBlob = shaMap.get(treeSha);
+    if (!treeBlob) {
+        console.log(`reconstructTree: tree blob does not exist`);
+        return;
     }
 
-    const pack = await repo.arrayBuffer();
-    // const text = await promisify(unzip)(repoText);
-    // console.log(pack.toString());
+    const { blobs } = trees.parseTreeFile(treeBlob);
+    for (const blob of blobs) {
+        if (blob.mode === '100644') {
+            const fileBlob = shaMap.get(blob.sha);
+            if (!fileBlob) {
+                console.log('reconstructTree: file blob does not exist');
+                continue;
+            }
+            const { content } = object.splitBlob(fileBlob);
+            await fs.writeFile(blob.name, content);
+            continue;
+        }
 
-    return pack;
+        if (blob.mode === '40000') {
+            const cwd = process.cwd();
+            await fs.mkdir(blob.name, { recursive: true });
+            process.chdir(blob.name);
+            await reconstructTree(blob.sha, shaMap);
+            process.chdir(cwd);
+            continue;
+        }
+
+        console.log(`reconstructTree: ignoring ${blob.mode} ${blob.name}`);
+    }
 }
 
-async function getHeadRef(gitUrl: string): Promise<string> {
-    const pack = await fetch(`${gitUrl}/info/refs?service=git-upload-pack`, {
-        headers: {
-            Accept: 'application/x-git-upload-pack-advertisement',
-        },
-    });
-    if (!pack.ok) {
-        const errorBody = await pack.text();
-        throw new Error(`fetch failed: ${errorBody}`);
-    }
-    const blob = await pack.text();
-    // console.log(`blob: ${blob}`);
-    const shaRegex = blob.match(/(?<sha>[0-9a-z]{40}) HEAD/);
-    if (!shaRegex?.groups?.sha) {
-        throw new Error('failed to find head');
+// contents.push({ mode: "40000", name: file.name, sha: treeSha });
+// } else {
+//     let objectSha = await object.writeObjectContents(await object.hashObject(subPath));
+//     const mode = ((file) => {
+//         if (file.isSymbolicLink()) return "120000";
+//         if (file.isFile()) return "100644";
+//         return "100755";
+//     })(file)
+    // for (const tree of entries.filter((entry) => entry.type === 'Tree')) {
+    //     const { blobs } = trees.parseTreeFile(tree.content, { skipHeader: true });
+    //
+    //     for (const blob of blobs) {
+    //         if (blob.mode !== '100644') continue;
+    //
+    //         const contents = shaToContents.get(blob.sha);
+    //         if (!contents) {
+    //             console.error(`blob ${sha} not found`);
+    //             continue;
+    //         }
+    //         const filePath = path.join(blob.name);
+    //         await fs.writeFile(filePath, contents);
+    //         console.log(`wrote ${filePath}: ${contents.slice(0, 10)}...`);
+    //     }
+    // }
+    //
+    // console.log(`blob`);
+// }
+
+async function writeEntriesIntoGit(entries: pack.PackItem[]): Promise<Map<string, Buffer>> {
+    const shaToContent = new Map<string, Buffer>();
+
+    // Save all objects into .git
+    for (const entry of entries) {
+        switch (entry.type) {
+            case "Blob": {
+                const formatContent = object.formBlob('blob', entry.content);
+                const sha = await object.writeObjectContents(formatContent);
+                shaToContent.set(sha, formatContent);
+                break;
+            }
+            case "Commit": {
+                const formatContent = object.formBlob('commit', entry.content);
+                const sha = await object.writeObjectContents(formatContent);
+                shaToContent.set(sha, formatContent);
+                break;
+            }
+            case "Tree": {
+                const formatContent = object.formBlob('tree', entry.content);
+                const sha = await object.writeObjectContents(formatContent);
+                shaToContent.set(sha, formatContent);
+            }
+        }
     }
 
-    return shaRegex.groups.sha;
+    return shaToContent;
 }
-
-// NOTE: This is the deprecated dumb protocol.
-//   const repo = await fetch(`${target}.git/objects/${sha.slice(0, 2)}/${sha.slice(2)}`)

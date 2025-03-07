@@ -29,12 +29,14 @@ export function objectPathFromSha(sha: Sha): string {
  * TODO: Bad name, loading file and formatting the blob.
  * @param fileName
  */
-export async function hashObject(fileName: string | Buffer): Promise<string> {
-    const contents = await fs.readFile(fileName, { encoding: 'ascii' });
-    const sizeBytes = Buffer.byteLength(contents);
+export async function hashObject(fileName: string | Buffer): Promise<Buffer> {
+    const contents = Buffer.isBuffer(fileName) ? fileName : await fs.readFile(fileName);
+    return formBlob('blob', contents);
 
-    const object = `blob ${sizeBytes}\0${contents}`;
-    return object;
+    // const sizeBytes = Buffer.byteLength(contents);
+    //
+    // const object = `blob ${sizeBytes}\0${contents}`;
+    // return object;
     // return writeObjectContents(content);
 }
 
@@ -65,4 +67,13 @@ export function splitBlob(file: Buffer): Object {
     const content = file.subarray(headerEnd + 1);
 
     return { type, size, content };
+}
+
+export function formBlob(type: string, contents: Buffer): Buffer {
+    const size = Buffer.byteLength(contents);
+    const fullBuffer = Buffer.concat([
+        Buffer.from(`${type} ${size}\0`, 'ascii'),
+        contents,
+    ]);
+    return fullBuffer;
 }

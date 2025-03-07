@@ -11,10 +11,13 @@ export type LsTree = {
     }[];
 }
 
-export function parseTreeFile(file: Buffer): LsTree {
-    const headerEndIndex = file.indexOf(0, 0);
-    const [type, size] = file.toString('ascii', 0, headerEndIndex).split(' ');
-    if (type !== 'tree') throw new Error("not a tree file");
+export function parseTreeFile(file: Buffer, options?: { skipHeader: boolean }): LsTree {
+    const headerEndIndex = options?.skipHeader ? -1 : file.indexOf(0, 0);
+    let size = 0;
+    if (!options?.skipHeader) {
+        const [type, size] = file.toString('ascii', 0, headerEndIndex).split(' ');
+        if (type !== 'tree') throw new Error("not a tree file");
+    }
 
     const blobs: LsTree['blobs'] = []
 
@@ -29,7 +32,7 @@ export function parseTreeFile(file: Buffer): LsTree {
 
         const startOfSha = endOfName + 1;
         const endOfSha = startOfSha + 20;
-        const sha = file.toString('hex', startOfSha, endOfSha + 1) as Sha;
+        const sha = file.toString('hex', startOfSha, endOfSha) as Sha;
 
         blobs.push({ mode, name, sha })
 
@@ -40,21 +43,6 @@ export function parseTreeFile(file: Buffer): LsTree {
 }
 
 
-export type CommitTreeParams = Parameters<typeof formatCommitTree>[0];
-export function formatCommitTree(args: { treeSha: string; parents: string | string[], message: string }): string {
-    const contents = `\
-tree ${args.treeSha}
-parent ${args.parents}
-author My Name <my_name@gmail.com> 946684800 -0800
-committer My Name <my_name@gmail.com> 946684800 -0800
-
-${args.message}
-`;
-    const size = Buffer.byteLength(contents);
-    const fullBuffer = `commit ${size}\0${contents}`;
-    return fullBuffer;
-    // return writeObjectContents(fullBuffer);
-}
 
 
 export function hashTree(tree: LsTree["blobs"]): string | Buffer {
