@@ -1,11 +1,10 @@
 {
-  "name": "@codecrafters/git",
-  "description": "Build your own Git challenge, from CodeCrafters",
-  "type": "module",
+  "name": "codecrafters-git-clone",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.ts",
   "scripts": {
-    "dev": "bun run app/main.ts"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "devDependencies": {
-    "@types/bun": "latest"
-  }
+  "private": true
 }

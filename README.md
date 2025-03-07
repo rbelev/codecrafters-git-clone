@@ -1,3 +1,9 @@
+Shout out and credit to CodeCrafter for this challenge. Highly recommended.
+
+This is a clone of my solution, as iterated through their cli and tests.
+
+---
+
 [![progress-banner](https://backend.codecrafters.io/progress/git/8d79512b-ae04-4119-a028-33eecab83985)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
 
 This is a starting point for TypeScript solutions to the
