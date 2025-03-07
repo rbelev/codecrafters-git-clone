@@ -7,8 +7,9 @@
     "build": "tsc",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "start": "node --experimental-transform-types --experimental-strip-types ./app/main.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node --experimental-strip-types ./app/main.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cat-file": "npm run start -- cat-file 14225c42a03630c8528007ea24fca972b9a37f8d"
   },
   "private": true,
   "type": "module",
