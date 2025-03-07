@@ -2,15 +2,16 @@
   "name": "codecrafters-git-clone",
   "version": "1.0.0",
   "description": "",
-  "main": "main.ts",
+  "main": "./app/main.ts",
   "scripts": {
     "build": "tsc",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "run": "node --experimental-transform-types --experimental-strip-types ./app/main.ts",
+    "start": "node --experimental-transform-types --experimental-strip-types ./app/main.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "private": true,
+  "type": "module",
   "devDependencies": {
     "@stylistic/eslint-plugin-ts": "^4.2.0",
     "@types/node": "^22.13.9",
