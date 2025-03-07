@@ -11,12 +11,12 @@ const EntryTypeMapping = {
 } as const;
 type EntryType = typeof EntryTypeMapping[keyof typeof EntryTypeMapping];
 
-type EntryPointer = { type: EntryType; size: number; position: number };
+interface EntryPointer { type: EntryType; size: number; position: number }
 
-export type PackItem = { content: Buffer; type: EntryType };
+export interface PackItem { content: Buffer; type: EntryType }
 
 
-export async function breakdownPack(pack: ArrayBuffer): Promise<Array<PackItem>> {
+export async function breakdownPack(pack: ArrayBuffer): Promise<PackItem[]> {
     // Cheating to skip echo & NACK to get to PACK.
     // CONFIRM: new UInt8Array seems to be a view of the underlying ArrayBuffer--no copying.
     const headerStart = new Uint8Array(pack).indexOf('\n'.charCodeAt(0)) + 1;
@@ -37,7 +37,7 @@ export async function breakdownPack(pack: ArrayBuffer): Promise<Array<PackItem>>
             const entry = await getNextEntry(pack, pointer);
             entries[i] = { content: entry.content, type: pointer.type };
             cursor = pointer.position + entry.bytesConsumed;
-        } catch (error: unknown) {
+        } catch {
             break;
         }
     }
@@ -78,25 +78,20 @@ async function getNextEntry(buffer: ArrayBuffer, pointer: EntryPointer): Promise
         return { type: pointer.type, content: Buffer.from(''), bytesConsumed: 0 };
     }
 
-    let zipContent = Buffer.from(buffer, pointer.position);
-    let sha: string | undefined = undefined;
+    const zipContent = Buffer.from(buffer, pointer.position);
+    const sha: string | undefined = undefined;
     let bytesConsumed = 0;
 
     if (pointer.type === 'OFS-delta' || pointer.type === 'REF-delta') {
         // TODO: base object name, not SHA?
+        // TODO: properly handle deltas, rather than erroring. 😉
+        //   ChatGPT led me to believe that the file's name was next,
+        //   followed by gzip contents describing the delta.
+        //   Neither pulling a 20 byte sha or looking for \0 delimiting a name worked.
         const nullByte = zipContent.indexOf('\0');
         const baseObjectName = zipContent.subarray(0, nullByte).toString('ascii');
         console.log(`getNextEntry: got ${nullByte}->'${baseObjectName}'`);
         bytesConsumed += nullByte + 1;
-
-
-        // sha = zipContent.subarray(0, 20).toString('hex');
-        // console.log(`getNextEntry: got ${pointer.type} sha: ${sha}`);
-        // zipContent = zipContent.subarray(20);
-        // bytesConsumed += 20;
-
-        // return { type: pointer.type, sha, content: zipContent.subarray(0, pointer.size), bytesConsumed: bytesConsumed + pointer.size };
-        // return zipContent;
     }
 
     const { buffer: content, engineBytesConsumed } = await unzipOutputBytes(zipContent, pointer);
@@ -105,7 +100,16 @@ async function getNextEntry(buffer: ArrayBuffer, pointer: EntryPointer): Promise
 }
 
 
-async function unzipOutputBytes(buffer: ArrayBuffer, pointer: EntryPointer): Promise<{ buffer: Buffer; engineBytesConsumed: number }> {
-    const result = (await promisify(unzip)(buffer, { info: true, maxOutputLength: pointer.size })) as unknown as { buffer: Buffer; engine: { bytesWritten: number } };
-    return { buffer: result.buffer, engineBytesConsumed: result.engine.bytesWritten};
+// TIL: zlib doesn't require an entire file, but happily streams, until maxOutputLength bytes are output.
+async function unzipOutputBytes(buffer: Buffer, pointer: EntryPointer): Promise<{ buffer: Buffer; engineBytesConsumed: number }> {
+    const result = (await promisify(unzip)(buffer, {
+        // Note: Node types don't seem to respect info: true as an overload with a different return.
+        info: true,
+        maxOutputLength: pointer.size,
+    })) as unknown as { buffer: Buffer; engine: { bytesWritten: number } };
+
+    return {
+        buffer: result.buffer,
+        engineBytesConsumed: result.engine.bytesWritten,
+    };
 }

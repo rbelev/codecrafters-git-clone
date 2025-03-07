@@ -20,18 +20,19 @@ switch (command) {
         console.log(sha);
         break;
     }
-    case Commands.LsTree:
-       const tree = await commands.ls_tree.readLsTree(args);
+    case Commands.LsTree: {
+        const tree = await commands.ls_tree.readLsTree(args);
         tree.blobs.forEach((blob) => {
             // console.log(`${blob.mode} tree ${blob.sha} ${blob.name}`);
             console.log(`${blob.name}`);
         });
-       break;
-   case Commands.WriteTree: {
+        break;
+    }
+    case Commands.WriteTree: {
        const sha = await commands.write_tree.writeTree();
        console.log(`${sha}`);
        break;
-   }
+    }
    case Commands.CommitTree: {
        const sha = await commands.commit_tree.commitTree(args);
        console.log(`${sha}`);

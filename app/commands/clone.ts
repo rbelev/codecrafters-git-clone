@@ -1,11 +1,11 @@
 import fs from "node:fs/promises";
 
 import { init } from './index.ts';
-import { commit, gitUploadPack, object, pack, sha, trees } from '../helpers/index.ts';
+import { commit, gitUploadPack, object, pack, trees } from '../helpers/index.ts';
 
 
 export async function clone(args: string[]): Promise<void> {
-    const [_clone, target, dir] = args;
+    const [, target, dir] = args;
 
     const packBuffer = await gitUploadPack.getRepoPack(target);
     const entries = await pack.breakdownPack(packBuffer);

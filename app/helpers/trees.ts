@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {object, sha, type Sha} from "./index.ts";
 
-export type LsTree = {
+export interface LsTree {
     size: number;
     blobs: {
         mode: string;
@@ -13,9 +13,9 @@ export type LsTree = {
 
 export function parseTreeFile(file: Buffer, options?: { skipHeader: boolean }): LsTree {
     const headerEndIndex = options?.skipHeader ? -1 : file.indexOf(0, 0);
-    let size = 0;
+    const size = 0;
     if (!options?.skipHeader) {
-        const [type, size] = file.toString('ascii', 0, headerEndIndex).split(' ');
+        const [type] = file.toString('ascii', 0, headerEndIndex).split(' ');
         if (type !== 'tree') throw new Error("not a tree file");
     }
 
@@ -23,7 +23,7 @@ export function parseTreeFile(file: Buffer, options?: { skipHeader: boolean }): 
 
     let startOfBlob = headerEndIndex + 1;
     while (true) {
-        let endOfName = file.indexOf(0, startOfBlob);
+        const endOfName = file.indexOf(0, startOfBlob);
         if (endOfName === -1) break;
         const fileInfo = file.toString('ascii', startOfBlob, endOfName);
         const modeIndex = fileInfo.indexOf(' ')
@@ -47,7 +47,7 @@ export function parseTreeFile(file: Buffer, options?: { skipHeader: boolean }): 
 
 export function hashTree(tree: LsTree["blobs"]): string | Buffer {
     const contents: Buffer[] = []
-    for (let blob of tree) {
+    for (const blob of tree) {
         contents.push(Buffer.from(`${blob.mode} ${blob.name}\0`, 'ascii'));
         contents.push(Buffer.from(sha.binarySha(blob.sha), 'binary'));
     }
@@ -66,7 +66,7 @@ export function hashTree(tree: LsTree["blobs"]): string | Buffer {
  * TODO: Poorly named, as it is writing new blobs for all files & subDirs encountered.
  * @param dirPath
  */
-export async function readTree(dirPath: string = '.'): Promise<Sha> {
+export async function readTree(dirPath = '.'): Promise<Sha> {
     const contents: LsTree["blobs"] = [];
 
     const files = fs.readdirSync(dirPath, { withFileTypes: true })
@@ -76,11 +76,11 @@ export async function readTree(dirPath: string = '.'): Promise<Sha> {
     for (const file of files) {
         const subPath = path.join(dirPath, file.name)
         if (file.isDirectory()) {
-            let treeSha = await readTree(subPath);
+            const treeSha = await readTree(subPath);
             // console.debug(`recursive writeTree returned: ${subPath} @ ${sha}`);
             contents.push({ mode: "40000", name: file.name, sha: treeSha });
         } else {
-            let objectSha = await object.writeObjectContents(await object.hashObject(subPath));
+            const objectSha = await object.writeObjectContents(await object.hashObject(subPath));
             const mode = ((file) => {
                 if (file.isSymbolicLink()) return "120000";
                 if (file.isFile()) return "100644";

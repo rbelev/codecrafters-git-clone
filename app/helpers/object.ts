@@ -5,11 +5,11 @@ import path from "node:path";
 
 import { sha, type Sha } from "../helpers/index.ts";
 
-export type Object = {
+export interface Object {
     type: string;
     size: number;
     content: string | Buffer;
-};
+}
 
 
 export async function loadObjectFile(sha: Sha): Promise<Buffer> {

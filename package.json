@@ -4,7 +4,19 @@
   "description": "",
   "main": "main.ts",
   "scripts": {
+    "build": "tsc",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "run": "node --experimental-transform-types --experimental-strip-types ./app/main.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@stylistic/eslint-plugin-ts": "^4.2.0",
+    "@types/node": "^22.13.9",
+    "@typescript-eslint/parser": "^8.26.0",
+    "eslint": "^9.21.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0"
+  }
 }

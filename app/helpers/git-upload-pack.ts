@@ -6,7 +6,7 @@ export async function getRepoPack(gitUrl: string): Promise<ArrayBuffer> {
 
 
 export async function getWantedShaPack(gitUrl: string, sha: string): Promise<ArrayBuffer> {
-    let wantCommand = Buffer.from(`want ${sha}\n`, 'ascii');
+    const wantCommand = Buffer.from(`want ${sha}\n`, 'ascii');
     const lengthPrefix = Buffer.from((wantCommand.byteLength + 4).toString(16).padStart(4, '0'));
     const wantLine = Buffer.concat([lengthPrefix, wantCommand]);
 

@@ -18,5 +18,7 @@ ${args.message}
 
 export function extractTreeShaFromCommit(commitBlob: Buffer): string {
     const match = commitBlob.toString('utf8').match(/tree (?<sha>[0-9a-z]{40})\n/);
-    return match!.groups!.sha;
+    if (!match?.groups?.sha) throw new Error('no tree sha in commit');
+
+    return match.groups.sha;
 }
